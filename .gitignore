@@ -1,0 +1,5 @@
+./cmake
+./
+/cmake-build-debug-visual-studio
+/cmake-build-debug
+/cmake-build-release-visual-studio
