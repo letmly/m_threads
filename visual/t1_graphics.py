@@ -1,19 +1,30 @@
+import plotly.graph_objects as go
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # Чтение данных из файла csv
-data = pd.read_csv(r"D:\.dev\vstu_MultiThreads\tests\mt1_tests.txt")
+data = pd.read_csv('../tests/mt1_tests2.txt')
+print(data.head())
+# Создание графика
+fig = go.Figure()
 
-# Построение графика
-plt.plot(data['N'], data['seq_t'], label='Sequential Time')
-plt.plot(data['N'], data['race_time'], label='Race Time')
-plt.plot(data['N'], data['mt_time'], label='MT Time')
+# # Добавление плоскости для времени выполнения последовательного алгоритма
+# fig.add_trace(go.Surface(x=data['N'], y=data['M'], z=data['seq_time'], colorscale='Blues', name='Sequential Time'))
+#
+# # Добавление плоскости для времени выполнения параллельного алгоритма (race_time)
+# fig.add_trace(go.Surface(x=data['N'], y=data['M'], z=data['race_time'], colorscale='Reds', name='Race Time'))
 
-# Добавление меток и легенды
-plt.xlabel('N')
-plt.ylabel('Time')
-plt.title('Time vs N')
-plt.legend()
+# Добавление плоскости для времени выполнения параллельного алгоритма (mt_time)
+fig.add_trace(go.Surface(x=data['N'], y=data['M'], z=data['mt_time'], colorscale='Greens', name='MT Time'))
+
+# Настройка макета графика
+fig.update_layout(
+    title='Time vs N vs M',
+    scene=dict(
+        xaxis=dict(title='N', range=[data['N'].min(), data['N'].max()]),
+        yaxis=dict(title='M', range=[data['M'].min(), data['M'].max()]),
+        zaxis=dict(title='Time')
+    )
+)
 
 # Отображение графика
-plt.show()
+fig.show()

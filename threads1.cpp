@@ -23,20 +23,20 @@ void mt_test(vector<int>& a, int& M);
 void mutex_test(vector<int>& a, int& M);
 
 mutex mut;
-int threads_count = thread::hardware_concurrency();
+int threads_count = thread::hardware_concurrency() - 2;
 
 int main() {
-    string outputFileName = "D:/.dev/vstu_MultiThreads/tests/mt1_tests.txt";
+    string outputFileName = "../tests/mt1_tests2.txt";
 
     ofstream out(outputFileName.c_str());
     streambuf* coutbuf = cout.rdbuf(); //save old buf
     cout.rdbuf(out.rdbuf()); //redirect cout to out.txt!
 
-//    vector<int> N{ 100000, 1000000, 100000000, 100000000, 250000000, 350000000, 650000000, 750000000 };
-    vector<int> N{ 100000, 1000000 };
+    vector<int> N{ 100000, 1000000, 100000000, 100000000, 250000000, 350000000, 650000000, 750000000 };
+//    vector<int> N{ 100000, 1000000 };
     vector<int> M{ 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000 };
-    
-    cout << "N,M,seq_t,race_time,mutex_t,mt_time,race_val,mutex_val,mt_val";
+
+    cout << "N,M,seq_time,race_time,mutex_time,mt_time,race_val,mutex_val,mt_val";
     for (int & i : N) {
         vector<int> g(i);
         for (int & j : M) {
