@@ -6,6 +6,10 @@
 #include <mutex>
 #include <numeric>
 #include <fstream>
+#include <ctime>
+#include <sstream>
+#include <iomanip>
+
 
 using namespace std;
 
@@ -23,17 +27,28 @@ void mt_test(vector<int>& a, int& M);
 void mutex_test(vector<int>& a, int& M);
 
 mutex mut;
-int threads_count = thread::hardware_concurrency() - 2;
+int threads_count = thread::hardware_concurrency();
 
-int main() {
-    string outputFileName = "../tests/mt1_tests2.txt";
+void mt1_test() {
+    // Получаем текущее время
+    time_t now = time(nullptr);
+    tm* localTime = localtime(&now);
+
+    // Создаем строковый поток для форматирования строки
+    ostringstream oss;
+
+    // Форматируем дату и время в строку
+    oss << put_time(localTime, "%Y-%m-%d_%H-%M-%S");
+
+    // Формируем имя файла
+    string outputFileName = "../tests/" + oss.str() + ".txt";
 
     ofstream out(outputFileName.c_str());
-    streambuf* coutbuf = cout.rdbuf(); //save old buf
-    cout.rdbuf(out.rdbuf()); //redirect cout to out.txt!
+    streambuf* coutbuf = cout.rdbuf();
+    cout.rdbuf(out.rdbuf());
 
-    vector<int> N{ 100000, 1000000, 100000000, 100000000, 250000000, 350000000, 650000000, 750000000 };
-//    vector<int> N{ 100000, 1000000 };
+//    vector<int> N{ 100000, 1000000, 10000000, 100000000, 250000000, 350000000, 650000000, 750000000 };
+    vector<int> N{ 100000, 1000000 };
     vector<int> M{ 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000 };
 
     cout << "N,M,seq_time,race_time,mutex_time,mt_time,race_val,mutex_val,mt_val";
