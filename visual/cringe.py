@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # Чтение данных из файла csv
-data = pd.read_csv('../tests/mt1_tests3.txt')
+data = pd.read_csv('../tests/2024-05-17_00-21-12.txt')
 
 # Выборка значений N, M и времени работы алгоритма
 N = data['N']

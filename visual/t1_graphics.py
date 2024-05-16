@@ -1,30 +1,27 @@
-import plotly.graph_objects as go
 import pandas as pd
+import matplotlib.pyplot as plt
 
-# Чтение данных из файла csv
-data = pd.read_csv('../tests/mt1_tests2.txt')
-print(data.head())
-# Создание графика
-fig = go.Figure()
+file_path = '../tests/2024-05-17_00-21-12.txt'
 
-# # Добавление плоскости для времени выполнения последовательного алгоритма
-# fig.add_trace(go.Surface(x=data['N'], y=data['M'], z=data['seq_time'], colorscale='Blues', name='Sequential Time'))
-#
-# # Добавление плоскости для времени выполнения параллельного алгоритма (race_time)
-# fig.add_trace(go.Surface(x=data['N'], y=data['M'], z=data['race_time'], colorscale='Reds', name='Race Time'))
+data = pd.read_csv(file_path)
 
-# Добавление плоскости для времени выполнения параллельного алгоритма (mt_time)
-fig.add_trace(go.Surface(x=data['N'], y=data['M'], z=data['mt_time'], colorscale='Greens', name='MT Time'))
+M_values = [10, 1000, 1000000, 100000000]
 
-# Настройка макета графика
-fig.update_layout(
-    title='Time vs N vs M',
-    scene=dict(
-        xaxis=dict(title='N', range=[data['N'].min(), data['N'].max()]),
-        yaxis=dict(title='M', range=[data['M'].min(), data['M'].max()]),
-        zaxis=dict(title='Time')
-    )
-)
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 10))
 
-# Отображение графика
-fig.show()
+axes = axes.flatten()
+
+for ax, M in zip(axes, M_values):
+    subset = data[data['M'] == M]
+    if subset.empty:
+        ax.set_title(f'No data for M = {M}')
+        continue
+    ax.plot(subset['N'], subset['mt_time'], marker='o', label='mt_time')
+    ax.plot(subset['N'], subset['seq_time'], marker='x', label='seq_time')
+    ax.set_xlabel('N')
+    ax.set_ylabel('Time')
+    ax.set_title(f'Graph for M = {M}')
+    ax.legend()
+
+plt.tight_layout()
+plt.show()
