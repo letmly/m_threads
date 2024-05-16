@@ -27,9 +27,10 @@ void mt_test(vector<int>& a, int& M);
 void mutex_test(vector<int>& a, int& M);
 
 mutex mut;
-int threads_count = thread::hardware_concurrency();
+int threads_count = 4;
 
 void mt1_test() {
+
     // Получаем текущее время
     time_t now = time(nullptr);
     tm* localTime = localtime(&now);
@@ -187,7 +188,11 @@ void mt_counting_srt(vector<int>& A, int& M) {
     }
 
     int st = 0;
-    (pow(2, log2(threads_count)) == threads_count) ? st = log2(threads_count) : st = log2(threads_count) + 1;
+    if ((threads_count & (threads_count - 1)) == 0) {
+        st = static_cast<int>(log2(threads_count));
+    } else {
+        st = static_cast<int>(log2(threads_count)) + 1;
+    }
     for (int layer = 0; layer < st; ++layer) {
         vector<thread> summy;
         for (int i = 0; i + pow(2, layer) < threads_count; i+= pow(2, layer + 1)) {

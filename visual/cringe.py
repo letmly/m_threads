@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # Чтение данных из файла csv
-data = pd.read_csv('../tests/2024-05-16_23-30-55.txt')
+data = pd.read_csv('../tests/mt1_tests3.txt')
 
 # Выборка значений N, M и времени работы алгоритма
 N = data['N']
@@ -28,7 +28,7 @@ for cls, col in [['seq_time', 'red'], ['mt_time', 'green']]:
 
 # Настройка макета графика
 fig.update_layout(
-    title='Time Surface vs N vs M',
+    title='Green - mt, Red - seq',
     scene=dict(
         xaxis=dict(title='N', range=[N.min(), N.max()]),
         yaxis=dict(title='M', range=[M.min(), M.max()]),
