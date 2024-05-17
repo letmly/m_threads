@@ -14,4 +14,6 @@ add_executable(vstu_MultiThreads mt1/threads1.cpp
         main.cpp
         main.cpp
         mt3/floid.cpp
-        mt3/floid.cpp)
+        mt3/floid.cpp
+        mt4/bsp.cpp
+        mt4/bsp.cpp)
