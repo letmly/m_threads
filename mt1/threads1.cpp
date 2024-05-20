@@ -21,10 +21,7 @@ void race_counting_srt(vector<int>& arr, int& M);
 void mt_counting_srt(vector<int>& arr, int& M);
 void mutex_counting_srt(vector<int>& arr, int& M);
 
-void linear_test(vector<int>& a, int& M);
-void race_test(vector<int>& a, int& M);
-void mt_test(vector<int>& a, int& M);
-void mutex_test(vector<int>& a, int& M);
+void me_test(void (*method)(vector<int>&, int&) ,vector<int>& a, int& M);
 
 mutex mut;
 int threads_count = 4;
@@ -69,10 +66,10 @@ void exp(int& N, int& M, vector<int>& snip) {
     vector<int> c(snip);
     vector<int> d(snip);
 
-    linear_test(a, M);
-    race_test(b, M);
-    mutex_test(c, M);
-    mt_test(d, M);
+    me_test(counting_sort, a, M);
+    me_test(race_counting_srt, b, M);
+    me_test(mutex_counting_srt, c, M);
+    me_test(mt_counting_srt, d, M);
 
     (a == b) ? cout << ",True" : cout << ",False";
     (a == c) ? cout << ",True" : cout << ",False";
@@ -137,6 +134,19 @@ void threaded_summy(vector<int>& C1, vector<int>& C2) {
     }
 }
 
+void cool_t_placer(vector<int>& A, vector<int>& C, int pos, int start, int end, int cnt) {
+    for (; start < end; ++start) {
+        for (int j = 0; j < C[start]; ++j) {
+            A[pos] = start;
+            pos++;
+        }
+    }
+    for (int j = 0; j < cnt; ++j) {
+        A[pos] = end;
+        pos++;
+    }
+}
+
 void race_counting_srt(vector<int>& A, int& M) {
     vector<int> C(M, 0);
     int chunkSize = A.size() / threads_count;
@@ -187,6 +197,7 @@ void mt_counting_srt(vector<int>& A, int& M) {
         thread.join();
     }
 
+    // бесполезное говно - локнуть суммирование локальных Cloc быстрее
     int st = 0;
     if ((threads_count & (threads_count - 1)) == 0) {
         st = static_cast<int>(log2(threads_count));
@@ -238,20 +249,35 @@ void mutex_counting_srt(vector<int>& A, int &M) {
         thread.join();
     }
 
-    vector<int> poses = { 0 };
-    int slice_s = M / threads_count;
-    for (int i = 0; i < threads_count - 1; ++i) {
-        int start = i * slice_s;
-        int end = start + slice_s;
-        int posis = accumulate(next(C.begin(), start), next(C.begin(), end), 0);
-        poses.push_back(poses[i] + posis);
+    int N = A.size();
+    int t_bunch = N / threads_count;
+    int appendix = N % threads_count;
+    vector<int> ind = { 1 };
+    vector<int> cnt = { 0 };
+    for (int k = 0; k < threads_count; ++k) {
+        int cur_cnt = t_bunch;
+        int i = ind[ind.size() - 1];
+        if (k == threads_count - 1) {
+            cur_cnt += appendix;
+        }
+
+        while (cur_cnt > 0) {
+            if (C[i] >= cur_cnt) {
+                ind.push_back(i);
+                cnt.push_back(cur_cnt);
+                C[i] -= cur_cnt;
+                cur_cnt = 0;
+            }
+            else {
+                cur_cnt -= C[i];
+                i++;
+            }
+        }
     }
 
     vector<thread> placing_threads;
     for (int i = 0; i < threads_count; ++i) {
-        int start = i * slice_s;
-        int end = (i == threads_count - 1) ? M : start + slice_s;
-        placing_threads.emplace_back(threaded_placer, ref(A), ref(C), poses[i], start, end);
+        placing_threads.emplace_back(cool_t_placer, ref(A), ref(C), i * t_bunch, ind[i], ind[i + 1], cnt[i + 1]);
     }
 
     for (auto& thread : placing_threads) {
@@ -259,37 +285,10 @@ void mutex_counting_srt(vector<int>& A, int &M) {
     }
 }
 
-void linear_test(vector<int>& a, int& M) {
+void me_test(void (*method)(vector<int>&, int&), vector<int>& a, int& M){
     double st;
     st = omp_get_wtime();
-    counting_sort(a, M);
-    double ft;
-    ft = omp_get_wtime();
-    cout << "," << ft - st;
-}
-
-void race_test(vector<int>& a, int& M) {
-    double st;
-    st = omp_get_wtime();
-    race_counting_srt(a, M);
-    double ft;
-    ft = omp_get_wtime();
-    cout << "," << ft - st;
-}
-
-void mt_test(vector<int>& a, int& M) {
-    double st;
-    st = omp_get_wtime();
-    mt_counting_srt(a, M);
-    double ft;
-    ft = omp_get_wtime();
-    cout << "," << ft - st;
-}
-
-void mutex_test(vector<int>& a, int& M) {
-    double st;
-    st = omp_get_wtime();
-    mutex_counting_srt(a, M);
+    method(a, M);
     double ft;
     ft = omp_get_wtime();
     cout << "," << ft - st;
