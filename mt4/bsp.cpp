@@ -1,32 +1,15 @@
 #include <iostream>
 #include <utility>
 #include <vector>
-#include <omp.h>
-#include <fstream>
 #include <random>
-#include <ctime>
 #include <sstream>
-#include <iomanip>
+#include "BSP.h"
+#include "BSPJson.h"
+
+#include <omp.h>
+#include <omp_llvm.h>
 
 using namespace std;
-
-struct Segment {
-    double x1, y1, x2, y2;
-};
-
-typedef vector<Segment> v_seg;
-
-struct BSPNode {
-    v_seg segments;
-    BSPNode* front;
-    BSPNode* back;
-
-    explicit BSPNode(v_seg Set) : segments(std::move(Set)), front(nullptr), back(nullptr) {}
-    ~BSPNode() {
-        delete front;
-        delete back;
-    }
-};
 
 void getLineEquation(Segment& seg, double& A, double& B, double& C) {
     A = seg.y1 - seg.y2;
@@ -47,9 +30,7 @@ bool findIntersection(double& A, double& B, double& C, Segment& seg, double& x, 
         return false;  // Линии параллельны или совпадают
     }
     x = (C1 * B - C * B1) / det;
-//    x = (B1 * C - B * C1) / det;
     y = (A1 * C - C1 * A) / det;
-//    y = (A * C1 - A1 * C) / det;
 
     if ((x >= std::min(seg.x1, seg.x2) && x <= std::max(seg.x1, seg.x2)) &&
         (y >= std::min(seg.y1, seg.y2) && y <= std::max(seg.y1, seg.y2))) {
@@ -64,8 +45,9 @@ void divideSet(v_seg& Set, Segment& div_seg, v_seg& frontSet, v_seg& backSet, v_
     getLineEquation(div_seg, A, B, C);
 
     for (Segment& seg : Set) {
-        if (&seg == &div_seg){
+        if (seg == div_seg){
             intersectSet.push_back(seg);
+            continue;
         }
 
         double D1 = evaluateLineEquation(A, B, C, seg.x1, seg.y1);
@@ -89,7 +71,7 @@ void divideSet(v_seg& Set, Segment& div_seg, v_seg& frontSet, v_seg& backSet, v_
                     frontSet.push_back({x, y, seg.x2, seg.y2});
                 }
             } else {
-                intersectSet.push_back({seg.x1, seg.y1, x, y});
+                intersectSet.push_back(seg);
             }
         }
     }
@@ -99,7 +81,10 @@ void divideSet(v_seg& Set, Segment& div_seg, v_seg& frontSet, v_seg& backSet, v_
 
 BSPNode* buildBSP(v_seg& segments, int depth = 0) {
     if (segments.empty()) return nullptr;
-
+    if (segments.size() == 1) {
+        auto node = new BSPNode(segments);
+        return node;
+    }
     Segment div_seg = segments[segments.size() / 2];
     v_seg frontSet, backSet, intersectSet;
 
@@ -113,15 +98,41 @@ BSPNode* buildBSP(v_seg& segments, int depth = 0) {
 }
 
 
-BSPNode* mt_buildBSP(vector<Segment>& segments) {
-    // TODO
-    return nullptr;
+BSPNode* mt_buildBSP(vector<Segment>& segments, int depth = 0) {
+    if (segments.empty()) return nullptr;
+    if (segments.size() == 1) {
+        auto node = new BSPNode(segments);
+        return node;
+    }
+    Segment div_seg = segments[segments.size() / 2];
+    v_seg frontSet, backSet, intersectSet;
+
+    divideSet(segments, div_seg, frontSet, backSet, intersectSet);
+    auto node = new BSPNode(intersectSet);
+
+    if (depth == 0) {
+        #pragma omp task shared(node)
+        {
+            node->back = buildBSP(backSet, depth + 1);
+        }
+        #pragma omp task shared(node)
+        {
+            node->front = buildBSP(frontSet, depth + 1);
+        }
+
+        #pragma omp taskwait
+    } else {
+        node->back = buildBSP(backSet, depth + 1);
+        node->front = buildBSP(frontSet,depth + 1);
+    }
+
+    return node;
 }
 
 v_seg generateSegments(int& count) {
     v_seg segments;
     mt19937 rng(random_device{}());
-    uniform_int_distribution<> dist(0.0, 100.0);
+    uniform_int_distribution<> dist(0.0, 1000.0);
 
     while (segments.size() < count) {
         Segment seg = {double (dist(rng)), double(dist(rng)), double(dist(rng)), double(dist(rng))};
@@ -130,57 +141,74 @@ v_seg generateSegments(int& count) {
     return segments;
 }
 
-void exportToJSON(const std::vector<Segment>& segments, const std::string& filename) {
-    time_t now = time(nullptr);
-    tm* localTime = localtime(&now);
-    ostringstream oss;
-    oss << put_time(localTime, "%d_%H-%M-%S");
 
-    std::ofstream file(filename + oss.str() + ".json");
-    file << "[\n";
-    for (size_t i = 0; i < segments.size(); ++i) {
-        const auto& seg = segments[i];
-        file << "  {\"x1\": " << seg.x1 << ", \"y1\": " << seg.y1 << ", \"x2\": " << seg.x2 << ", \"y2\": " << seg.y2 << "}";
-        if (i < segments.size() - 1) {
-            file << ",";
-        }
-        file << "\n";
-    }
-    file << "]";
-    file.close();
-}
+void mt4_test(int s_count = 10, bool write_tree = false, std::string from = "", std::string spec_dir = "out") {
+    v_seg segments;
 
-void printBSP(BSPNode* root, int depth = 0) {
-    if (root == nullptr) return;
-
-    for (auto seg : root->segments) {
-        for (int i = 0; i < depth; ++i) cout << "  ";
-        cout << "Segment: (" << seg.x1 << ", " << seg.y1 << ") -> ("
-                  << seg.x2 << ", " << seg.y2 << ")\n";
+    if (!from.empty()) {
+        // TODO читать из файла
     }
 
-    for (int i = 0; i < depth; ++i) cout << "  ";
-    cout << "back\n";
-    printBSP(root->back, depth + 1);
-    for (int i = 0; i < depth; ++i) cout << "  ";
-    cout << "front\n";
-    printBSP(root->front, depth + 1);
-}
+    v_seg segments_copy;
 
-void mt4_test() {
-//    v_seg segments = {
-//            {80, 2, 40, 35}, {70, 5, 30, 48}
-//            {80, 2, 70, 10}, {70, 6, 30, 48}
-//            {70, 6, 30, 48}, {80, 2, 70, 10}
-//    };
-    int countSegments = 5;
-    v_seg segments = generateSegments(countSegments);
+    cout << "worst predict of segments amount = " << s_count + 4 * s_count * log2(s_count) << "\n";
+    cout << "good predict of segments amount = " << s_count + 2 * s_count * log2(s_count) << "\n";
 
-    exportToJSON(segments, "../mt4/gens/");
     BSPNode* root = nullptr;
+    for (int i : {1, 2, 3, 1652334, 9978595, 536262334, 88878595}) {
+        segments = generateSegments(s_count);
+        std::minstd_rand0 g1 (i);
+        std::shuffle(std::begin(segments), std::end(segments), g1);
 
-    root = buildBSP(segments);
+        segments_copy = segments;
 
-    printBSP(root);
+        double st = omp_get_wtime();
+        root = buildBSP(segments_copy);
+        double ft = omp_get_wtime();
+        cout << "\tRACE BSP built of " << s_count << "segs in: " << ft - st << " seconds.\n";
+//        cout << "\tRACE BSP seg count: " << root->countSegments() << "\n\n";
 
+        segments_copy = segments;
+
+        BSPNode* mt_root = nullptr;
+        st = omp_get_wtime();
+        omp_set_max_active_levels(10);
+
+        mt_root = mt_buildBSP(segments_copy);
+
+
+        ft = omp_get_wtime();
+        cout << "\tMultiProc BSP built of " << s_count << "segs in: " << ft - st << " seconds.\n";
+        cout << "\tMultiProc BSP seg count: " << mt_root->countSegments() << "\n";
+    }
+}
+
+void mt4_test_hard(string spec_dir = "out") {
+
+    vector<int> segments_counts = { 100, 1000, 10000};
+
+    for (int& count : segments_counts) {
+        v_seg segments = generateSegments(count);
+        v_seg segments_copy(segments);
+
+        BSPNode* root = nullptr;
+        double st = omp_get_wtime();
+        root = buildBSP(segments);
+        double ft = omp_get_wtime();
+        cout << "\tRACE BSP built of " << count << "segs in: " << ft - st << "seconds.\n";
+
+        BSPNode* mt_root = nullptr;
+        st = omp_get_wtime();
+        mt_root = buildBSP(segments_copy);
+        ft = omp_get_wtime();
+        cout << "\tMultiProc BSP built of " << count << "segs in: " << ft - st << " seconds.\n";
+
+        cout << "saving trees...\n";
+
+        if (*mt_root == *root) {
+            std::cout << "BSP trees are equal." << std::endl;
+        } else {
+            std::cout << "TREES ARE DIFFERENT!." << std::endl;
+        }
+    }
 }
