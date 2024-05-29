@@ -5,9 +5,7 @@
 #include <sstream>
 #include "BSP.h"
 #include "BSPJson.h"
-
 #include <omp.h>
-#include <omp_llvm.h>
 
 using namespace std;
 
@@ -79,58 +77,6 @@ void divideSet(v_seg& Set, Segment& div_seg, v_seg& frontSet, v_seg& backSet, v_
     Set.shrink_to_fit();
 }
 
-void mt_divideSet(v_seg& Set, Segment& div_seg, v_seg& frontSet, v_seg& backSet, v_seg& intersectSet) {
-    double A, B, C;
-    getLineEquation(div_seg, A, B, C);
-
-    #pragma omp parallel num_threads(4)
-    {
-        v_seg local_frontSet, local_backSet, local_intersectSet;
-
-        #pragma omp for nowait
-        for (int i = 0; i < Set.size(); ++i) {
-            Segment &seg = Set[i];
-            if (seg == div_seg){
-                local_intersectSet.push_back(seg);
-                continue;
-            }
-
-            double D1 = evaluateLineEquation(A, B, C, seg.x1, seg.y1);
-            double D2 = evaluateLineEquation(A, B, C, seg.x2, seg.y2);
-
-            if (D1 > 0 && D2 > 0) {
-                local_frontSet.push_back(seg);
-            } else if (D1 < 0 && D2 < 0) {
-                local_backSet.push_back(seg);
-            } else if (D1 == 0 && D2 == 0) {
-                local_intersectSet.push_back(seg);
-            } else {
-                // Сегмент пересекает линию
-                double x, y;
-                if (findIntersection(A, B, C, seg, x, y)) {
-                    if (D1 > 0) {
-                        local_frontSet.push_back({seg.x1, seg.y1, x, y});
-                        local_backSet.push_back({x, y, seg.x2, seg.y2});
-                    } else {
-                        local_backSet.push_back({seg.x1, seg.y1, x, y});
-                        local_frontSet.push_back({x, y, seg.x2, seg.y2});
-                    }
-                } else {
-                    local_intersectSet.push_back(seg);
-                }
-            }
-        }
-        #pragma omp critical
-        {
-            frontSet.insert(frontSet.end(), local_frontSet.begin(), local_frontSet.end());
-            backSet.insert(backSet.end(), local_backSet.begin(), local_backSet.end());
-            intersectSet.insert(intersectSet.end(), local_intersectSet.begin(), local_intersectSet.end());
-        }
-    }
-    Set.clear();
-    Set.shrink_to_fit();
-}
-
 BSPNode* buildBSP(v_seg& segments, int depth = 0) {
     if (segments.empty()) return nullptr;
     if (segments.size() == 1) {
@@ -159,11 +105,20 @@ BSPNode* mt_buildBSP(vector<Segment>& segments, int depth = 0) {
     Segment div_seg = segments[segments.size() / 2];
     v_seg frontSet, backSet, intersectSet;
 
-    mt_divideSet(segments, div_seg, frontSet, backSet, intersectSet);
+    divideSet(segments, div_seg, frontSet, backSet, intersectSet);
     auto node = new BSPNode(intersectSet);
 
-    node->back = buildBSP(backSet, depth + 1);
-    node->front = buildBSP(frontSet,depth + 1);
+    if (depth < 5) {
+#pragma omp task
+        node->back = mt_buildBSP(backSet, depth + 1);
+#pragma omp task
+        node->front = mt_buildBSP(frontSet,depth + 1);
+#pragma omp taskwait
+    }
+    else {
+        node->back = buildBSP(backSet, depth + 1);
+        node->front = buildBSP(frontSet,depth + 1);
+    }
 
     return node;
 }
@@ -208,14 +163,23 @@ void mt4_test(int s_count = 10, bool write_tree = false, std::string from = "", 
         cout << "\n\n-----------------TEST-----------------\n";
         cout << "\tRACE BSP built of " << s_count << "segs in: " << ft - st << " seconds.\n";
         cout << "\tRACE BSP seg count: " << root->countSegments() << "\n\n";
+        delete root;
+
 
         segments_copy = segments;
 
         BSPNode* mt_root = nullptr;
         st = omp_get_wtime();
-        mt_root = mt_buildBSP(segments_copy);
+        #pragma omp parallel
+        {
+            #pragma omp single
+            {
+                mt_root = mt_buildBSP(segments_copy);
+            }
+        }
         ft = omp_get_wtime();
         cout << "\tMultiProc BSP built of " << s_count << "segs in: " << ft - st << " seconds.\n";
         cout << "\tMultiProc BSP seg count: " << mt_root->countSegments() << "\n";
+        delete mt_root;
     }
 }
