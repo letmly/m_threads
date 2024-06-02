@@ -9,6 +9,6 @@ void mt4_test(int segments_count = 10, bool write_tree = false, std::string from
 int main() {
 //    mt1_test();
 //    mt3_test_hard();
-    mt4_test(8000, false);
+    mt4_test(8000, false, "D:\\.dev\\m_threads\\mt4\\segmets_from_imgs\\horseeye.json");
 
 }

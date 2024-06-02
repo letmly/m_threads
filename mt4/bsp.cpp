@@ -95,7 +95,6 @@ BSPNode* buildBSP(v_seg& segments, int depth = 0) {
     return node;
 }
 
-
 BSPNode* mt_buildBSP(vector<Segment>& segments, int depth = 0) {
     if (segments.empty()) return nullptr;
     if (segments.size() == 1) {
@@ -138,21 +137,22 @@ v_seg generateSegments(int& count) {
 
 void mt4_test(int s_count = 10, bool write_tree = false, std::string from = "", std::string spec_dir = "out") {
     v_seg segments;
-
-    if (!from.empty()) {
-        // TODO читать из файла
+    if (!from.empty()){
+        segments = readSegments(from);
+        s_count = segments.size();
     }
-
     v_seg segments_copy;
-
-    cout << "worst predict of segments amount = " << s_count + 4 * s_count * log2(s_count) << "\n";
-    cout << "good predict of segments amount = " << s_count + 2 * s_count * log2(s_count) << "\n";
+    cout << "worst predict of segments amount = " << int(s_count + 4 * s_count * log2(s_count)) << "\n";
+    cout << "good predict of segments amount = " << int(s_count + 2 * s_count * log2(s_count)) << "\n";
 
 
     for (int i : {1, 2, 3, 1652334, 9978595, 536262334, 88878595}) {
-        segments = generateSegments(s_count);
-        std::minstd_rand0 g1 (i);
-        std::shuffle(std::begin(segments), std::end(segments), g1);
+        if (from.empty()){
+            segments = generateSegments(s_count);
+            std::minstd_rand0 g1 (i);
+            std::shuffle(std::begin(segments), std::end(segments), g1);
+        }
+
 
         segments_copy = segments;
 

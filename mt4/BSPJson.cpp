@@ -5,6 +5,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+//#include <nlohmann/json.hpp>
 
 using namespace std;
 
@@ -85,4 +86,38 @@ void printBSP(BSPNode* root, int depth) {
     for (int i = 0; i < depth; ++i) cout << "  ";
     cout << "front\n";
     printBSP(root->front, depth + 1);
+}
+
+v_seg readSegments(const std::string& file_path) {
+    std::ifstream input(file_path);
+    std::string line;
+    v_seg segments;
+    bool inside_segment = false;
+    Segment seg;
+
+    while (std::getline(input, line)) {
+        if (line.find('{') != std::string::npos) {
+            inside_segment = true;
+        } else if (line.find('}') != std::string::npos) {
+            segments.push_back(seg);
+            inside_segment = false;
+        } else if (inside_segment) {
+            size_t pos = line.find(":");
+            if (pos != std::string::npos) {
+                std::string key = line.substr(0, pos);
+                double value = std::stod(line.substr(pos + 1));
+                if (key.find("x1") != std::string::npos) {
+                    seg.x1 = value;
+                } else if (key.find("y1") != std::string::npos) {
+                    seg.y1 = value;
+                } else if (key.find("x2") != std::string::npos) {
+                    seg.x2 = value;
+                } else if (key.find("y2") != std::string::npos) {
+                    seg.y2 = value;
+                }
+            }
+        }
+    }
+
+    return segments;
 }

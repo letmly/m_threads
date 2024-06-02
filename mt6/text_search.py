@@ -1,26 +1,27 @@
 import os
 import re
 import time
+from time import time_ns
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import random
 
 
 def count_string_in_chunk(chunk, target_string):
-    return len(re.findall(target_string, chunk))
+    return chunk.count(target_string)
+    # return len(re.findall(target_string, chunk))
 
 
 def get_total_size_and_files(directory_path):
     total_size = 0
     file_paths = []
     for root, dirs, files in os.walk(directory_path):
+        
         for file in files:
             file_path = os.path.join(root, file)
-            if file.endswith('.txt'):  # Только текстовые файлы
+            if file.endswith('.txt'):
                 file_size = os.path.getsize(file_path)
                 total_size += file_size
                 file_paths.append((file_path, file_size))
-        if len(file_paths) > 400:
-            break
     return total_size, file_paths
 
 
@@ -32,8 +33,13 @@ def read_in_chunks(file_path, start, size):
 
 
 def process_chunk(file_path, start, size, target_string):
+    t_0 = time_ns()
     chunk = read_in_chunks(file_path, start, size)
-    return count_string_in_chunk(chunk, target_string)
+    t_1 = time_ns()
+    x = count_string_in_chunk(chunk, target_string)
+    t_2 = time_ns()
+    # print(f'Read time: {(t_1-t_0)/10**6}, Find time: {(t_2-t_1)/10**6}')
+    return x
 
 
 def process_tasks(tasks):
@@ -58,7 +64,7 @@ def threaded_count_string(directory_path, target_string):
             futures.append(executor.submit(process_chunk, file_path, 0, file_size, target_string))
         for file_path, future in zip(file_paths, futures):
             cnt = future.result()
-            if cnt > 0:  # Сохраняем только те файлы, где нашелся текст
+            if cnt > 0:
                 if file_path not in counts:
                     counts[file_path] = 0
                 counts[file_path] += cnt
@@ -73,7 +79,6 @@ def processed_count_string(directory_path, target_string, num_processes):
     process_sizes = [0] * num_processes
     remaining_files = []
 
-    # Первичное распределение файлов по процессам
     for file_path, file_size in file_paths:
         assigned = False
         for i in range(num_processes):
@@ -85,7 +90,6 @@ def processed_count_string(directory_path, target_string, num_processes):
         if not assigned:
             remaining_files.append((file_path, file_size))
 
-    # Обработка оставшихся файлов и частей файлов
     for file_path, file_size in remaining_files:
         start = 0
         for i in range(num_processes):
@@ -104,7 +108,7 @@ def processed_count_string(directory_path, target_string, num_processes):
         for future in futures:
             result = future.result()
             for file_path, count in result.items():
-                if count > 0:  # Сохраняем только те файлы, где нашелся текст
+                if count > 0:
                     if file_path not in counts:
                         counts[file_path] = 0
                     counts[file_path] += count
@@ -125,24 +129,32 @@ def count_string(directory_path, target_string):
 
 
 def main():
-    directory_path = 'big_book'
-    target_string = "Winston"
-    num_threads = os.cpu_count()
+    directory_paths = ['big_book', 'BIG_FILES'] 
+    target_strings = ["god", 'abcde']
+    num_processes = 8
 
-    st = time.time()
-    total_count = threaded_count_string(directory_path, target_string)
-    print(f"mt Total occurrences of '{target_string}': {total_count}")
-    print(f"Time for mt: {time.time() - st} sec\n")
+    for _ in range(10):
+        print(f"\n\t\tITERATION {_}")
+        directory_path = 'BIG_FILES'
+        target_strings = ['abcde', 'DDDDD', 'aaaaaa']
 
-    st = time.time()
-    total_count = processed_count_string(directory_path, target_string, num_threads)
-    print(f"processed Total occurrences of '{target_string}': {total_count}")
-    print(f"Time for processed: {time.time() - st} sec\n")
+        for target_string in target_strings:
+            print(f"\n\t\t---------")
+            
+            st = time.time()
+            total_count = threaded_count_string(directory_path, target_string)
+            print(f"mt Total occurrences of '{target_string}': {total_count}")
+            print(f"Time for mt: {time.time() - st} sec\n")
 
-    st = time.time()
-    cnt = count_string(directory_path, target_string)
-    print(f"race Total occurrences of '{target_string}': {cnt}")
-    print(f"Time for race: {time.time() - st} sec")
+            st = time.time()
+            total_count = processed_count_string(directory_path, target_string, num_processes)
+            print(f"processed Total occurrences of '{target_string}': {total_count}")
+            print(f"Time for processed: {time.time() - st} sec\n")
+
+            st = time.time()
+            cnt = count_string(directory_path, target_string)
+            print(f"race Total occurrences of '{target_string}': {cnt}")
+            print(f"Time for race: {time.time() - st} sec")
 
 
 if __name__ == "__main__":

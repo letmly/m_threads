@@ -11,6 +11,13 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 endif()
 
+#include(FetchContent)
+#FetchContent_Declare(
+#        json
+#        URL https://github.com/nlohmann/json/releases/download/v3.10.5/json.hpp
+#)
+#FetchContent_MakeAvailable(json)
+
 add_executable(vstu_MultiThreads
         mt1/threads1.cpp
         main.cpp
@@ -24,3 +31,6 @@ add_executable(vstu_MultiThreads
 if(OpenMP_CXX_FOUND)
     target_link_libraries(vstu_MultiThreads PUBLIC OpenMP::OpenMP_CXX)
 endif()
+
+
+#target_include_directories(MyExecutable PRIVATE ${json_SOURCE_DIR})

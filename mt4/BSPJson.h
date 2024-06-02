@@ -11,5 +11,6 @@ void saveTreeToJson(const BSPNode* root, const std::string& filename);
 void exportToJSON(const std::vector<Segment>& segments, const std::string& filename);
 void printBSP(BSPNode* root, int depth = 0);
 std::string get_time();
+v_seg readSegments(const std::string& file_path);
 
 #endif //VSTU_MULTITHREADS_BSPJSON_H

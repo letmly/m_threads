@@ -16,7 +16,7 @@ def create_text_files(directory, num_files, min_size, max_size):
     for i in range(num_files):
         file_size = random.randint(min_size, max_size)
         file_content = generate_random_text(file_size)
-        file_path = os.path.join(directory, f'file_{i+100}.txt')
+        file_path = os.path.join(directory, f'file_{i+1023}.txt')
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(file_content)
         print(f'Создан файл {file_path} размером {file_size} байт')
